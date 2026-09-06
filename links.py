@@ -5,9 +5,12 @@ The database file is ``links.db`` next to this module and is gitignored.
 
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 import time
+
+logger = logging.getLogger(__name__)
 
 _DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "links.db")
 
@@ -40,6 +43,7 @@ def set_link(user_id: str, tachi_username: str) -> None:
         conn.commit()
     finally:
         conn.close()
+    logger.info("Link set: user %s -> %s", user_id, tachi_username)
 
 
 def get_link(user_id: str) -> str | None:
@@ -49,9 +53,11 @@ def get_link(user_id: str) -> str | None:
         row = conn.execute(
             "SELECT tachi_username FROM links WHERE user_id = ?", (user_id,)
         ).fetchone()
-        return row[0] if row else None
+        result = row[0] if row else None
     finally:
         conn.close()
+    logger.debug("Link lookup: %s -> %s", user_id, result)
+    return result
 
 
 def unlink(user_id: str) -> bool:
@@ -60,6 +66,8 @@ def unlink(user_id: str) -> bool:
     try:
         cur = conn.execute("DELETE FROM links WHERE user_id = ?", (user_id,))
         conn.commit()
-        return cur.rowcount > 0
+        removed = cur.rowcount > 0
     finally:
         conn.close()
+    logger.info("Link unlinked: user %s (existed=%s)", user_id, removed)
+    return removed

@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
 import os
+import time
 
 import discord
 from discord import app_commands
@@ -16,6 +18,7 @@ from dotenv import load_dotenv
 
 import links
 from b50_render.generate import generate_b50_image
+from logsetup import setup_logging
 from tachi import (
     PrivateProfile,
     TachiError,
@@ -24,7 +27,10 @@ from tachi import (
     find_user,
 )
 
+logger = logging.getLogger(__name__)
+
 load_dotenv()
+setup_logging()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
@@ -64,6 +70,13 @@ async def b50(
     username: str | None = None,
     mode: str = "nabla",
 ) -> None:
+    logger.info(
+        "/b50 by %s (%s): username=%r mode=%s",
+        interaction.user,
+        interaction.user.id,
+        username,
+        mode,
+    )
     # Rendering (jackets + VF) can take tens of seconds; defer so Discord
     # doesn't treat us as unresponsive.
     await interaction.response.defer()
@@ -71,31 +84,37 @@ async def b50(
     if not username:
         username = links.get_link(str(interaction.user.id))
         if not username:
+            logger.info("/b50: no username and no link for user %s", interaction.user.id)
             await interaction.followup.send(
                 "No username given and no link found. "
                 "Use `/link <kamaitachi-username>` once, or `/b50 <username>`."
             )
             return
 
+    t0 = time.monotonic()
     try:
         rows, total_vf, skipped = await asyncio.to_thread(
             build_b50, username, exceed=(mode == "exceed")
         )
     except UserNotFound:
+        logger.warning("/b50: user not found: %s", username)
         await interaction.followup.send(
             f"Couldn't find a public Tachi user `{username}`."
         )
         return
     except PrivateProfile:
+        logger.warning("/b50: private profile: %s", username)
         await interaction.followup.send(
             f"`{username}` exists but their profile is private — scores aren't visible."
         )
         return
     except TachiError as exc:
+        logger.error("/b50: tachi error: %s", exc)
         await interaction.followup.send(f"Tachi error: {exc}")
         return
 
     if not rows:
+        logger.warning("/b50: no charts for %s", username)
         await interaction.followup.send(
             f"No SDVX charts found for `{username}`. Check the username spelling."
         )
@@ -110,6 +129,7 @@ async def b50(
     try:
         img = await asyncio.to_thread(generate_b50_image, payload)
     except Exception as exc:  # noqa: BLE001
+        logger.error("/b50: render failed: %s", exc)
         await interaction.followup.send(f"Image rendering failed: {exc}")
         return
 
@@ -119,6 +139,14 @@ async def b50(
 
     ver = "Exceed Gear" if mode == "exceed" else "Nabla"
     note = f" · {ver}" + (f" · skipped {skipped} chart(s)" if skipped else "")
+    logger.info(
+        "/b50 done for %s: %.3f VF (%d charts, skipped %d) in %.2fs",
+        username,
+        total_vf,
+        len(rows),
+        skipped,
+        time.monotonic() - t0,
+    )
     await interaction.followup.send(
         content=f"**{total_vf:.3f} VF**{note}",
         file=discord.File(buf, filename="b50.png"),
@@ -130,20 +158,26 @@ async def b50(
 )
 @app_commands.describe(username="Your Tachi/Kamaitachi username")
 async def link(interaction: discord.Interaction, username: str) -> None:
+    logger.info(
+        "/link by %s (%s) -> %s", interaction.user, interaction.user.id, username
+    )
     try:
         canonical = await asyncio.to_thread(find_user, username)
     except UserNotFound:
+        logger.warning("/link: user not found: %s", username)
         await interaction.response.send_message(
             f"Couldn't find a Tachi user `{username}`."
         )
         return
     except PrivateProfile:
+        logger.warning("/link: private profile: %s", username)
         await interaction.response.send_message(
             f"`{username}` exists but their profile is private — scores aren't visible. "
             "Make it public, then link again."
         )
         return
     except TachiError as exc:
+        logger.error("/link: tachi error: %s", exc)
         await interaction.response.send_message(f"Tachi error: {exc}")
         return
 
@@ -158,6 +192,7 @@ async def link(interaction: discord.Interaction, username: str) -> None:
     name="unlink", description="Unlink your Discord account from your Tachi username"
 )
 async def unlink(interaction: discord.Interaction) -> None:
+    logger.info("/unlink by %s (%s)", interaction.user, interaction.user.id)
     removed = links.unlink(str(interaction.user.id))
     if removed:
         await interaction.response.send_message(

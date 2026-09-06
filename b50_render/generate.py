@@ -2,12 +2,16 @@
 
 import os
 import functools
+import logging
+import time
 import numpy as np
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 from io import BytesIO
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 # ── Layout constants ─────────────────────────────────────────────────────────
 NUM_COLS     = 3
@@ -140,6 +144,7 @@ def _fetch_jacket(song_id):
     cache = os.path.join(JACKET_CACHE, f"{sid}.webp")
     if os.path.exists(cache):
         try:
+            logger.debug("jacket cache hit: %s", sid)
             return Image.open(cache).convert("RGB")
         except Exception:
             pass
@@ -147,10 +152,13 @@ def _fetch_jacket(song_id):
     try:
         r = requests.get(url, timeout=8)
         if r.status_code == 200:
+            logger.debug("jacket fetched: %s", sid)
             with open(cache, "wb") as fh:
                 fh.write(r.content)
             return Image.open(BytesIO(r.content)).convert("RGB")
+        logger.debug("jacket HTTP %s: %s", r.status_code, sid)
     except Exception:
+        logger.debug("jacket fetch failed: %s", sid)
         pass
     return None
 
@@ -369,6 +377,14 @@ def generate_b50_image(data: dict) -> Image.Image:
 
     mode   = (data.get("mode") or "nabla").lower()
     scheme = COLOR_SCHEMES.get(mode, COLOR_SCHEMES["nabla"])
+    logger.info(
+        "render start: user=%s vf=%.3f mode=%s scores=%d",
+        username,
+        vf,
+        mode,
+        len(scores),
+    )
+    t0 = time.monotonic()
 
     img  = _background_gradient(IMAGE_WIDTH, IMAGE_HEIGHT, scheme["bg_top"], scheme["bg_bottom"])
     draw = ImageDraw.Draw(img)
@@ -418,4 +434,5 @@ def generate_b50_image(data: dict) -> Image.Image:
         anchor="rm",
     )
 
+    logger.info("render done in %.2fs", time.monotonic() - t0)
     return img

@@ -116,6 +116,9 @@ The jacket cache is a named volume, so covers aren't re-downloaded on every rest
 - **Verified correctness:** the VF calculation matches Tachi's own
   `calculatedData.VF7` (current / Nabla) and `VF6` (Exceed Gear) exactly — 2551/2551
   charts on a live sample.
+- **Logging:** every Tachi lookup, link action, command invocation and render is
+  logged to the console. `INFO` (default) logs one line per action; set
+  `LOG_LEVEL=DEBUG` in `.env` (or the environment) for per-request detail.
 
 ## Credit / license
 

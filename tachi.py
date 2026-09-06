@@ -17,9 +17,14 @@ Verified against the live schema (2025):
 
 from __future__ import annotations
 
+import logging
+import time
+
 import requests
 
 from vf import calculate_vf
+
+logger = logging.getLogger(__name__)
 
 API_BASE = "https://kamai.tachi.ac/api/v1"
 
@@ -47,10 +52,13 @@ def fetch_pbs(username: str):
     Raises :class:`UserNotFound`, :class:`PrivateProfile` or :class:`TachiError`.
     """
     url = f"{API_BASE}/users/{username}/games/sdvx/pbs/all"
+    logger.info("Tachi GET %s", url)
+    t0 = time.monotonic()
     try:
         r = requests.get(url, timeout=30)
     except requests.RequestException as exc:
         raise TachiError(f"Could not reach Tachi: {exc}") from exc
+    logger.info("Tachi -> HTTP %s (%.2fs)", r.status_code, time.monotonic() - t0)
 
     if r.status_code == 404:
         raise UserNotFound(username)
@@ -72,6 +80,7 @@ def fetch_pbs(username: str):
         for c in body.get("charts", [])
         if c.get("chartID")
     }
+    logger.info("Tachi %s: %d pbs, %d charts", username, len(pbs), len(charts))
     return pbs, charts
 
 
@@ -82,10 +91,15 @@ def find_user(username: str) -> str:
     :class:`UserNotFound`, :class:`PrivateProfile` or :class:`TachiError`.
     """
     url = f"{API_BASE}/users/{username}"
+    logger.info("Tachi user lookup: %s", username)
+    t0 = time.monotonic()
     try:
         r = requests.get(url, timeout=20)
     except requests.RequestException as exc:
         raise TachiError(f"Could not reach Tachi: {exc}") from exc
+    logger.info(
+        "Tachi lookup %s -> HTTP %s (%.2fs)", username, r.status_code, time.monotonic() - t0
+    )
     if r.status_code == 404:
         raise UserNotFound(username)
     if r.status_code in (401, 403):
@@ -97,7 +111,9 @@ def find_user(username: str) -> str:
     if data.get("success") is False:
         raise TachiError(data.get("description") or "Tachi returned an error")
     body = data.get("body", {})
-    return body.get("username") or username
+    name = body.get("username") or username
+    logger.info("Tachi user %s -> %s", username, name)
+    return name
 
 
 def build_b50(username: str, exceed: bool = False, limit: int = 50):
@@ -106,6 +122,7 @@ def build_b50(username: str, exceed: bool = False, limit: int = 50):
     ``top_rows`` are the payload dicts the renderer expects:
       ``{songId, title, diff, level, score, grade, lamp, vf, timeAchieved}``
     """
+    logger.info("Building B50 for %s (exceed=%s)", username, exceed)
     pbs, charts = fetch_pbs(username)
     rows: list[dict] = []
     skipped = 0
@@ -145,4 +162,12 @@ def build_b50(username: str, exceed: bool = False, limit: int = 50):
     rows.sort(key=lambda r: r["vf"], reverse=True)
     top = rows[:limit]
     total_vf = sum(r["vf"] for r in top)
+    logger.info(
+        "B50 %s: %d charts -> top %d, VF %.3f (skipped %d)",
+        username,
+        len(rows),
+        len(top),
+        total_vf,
+        skipped,
+    )
     return top, total_vf, skipped
