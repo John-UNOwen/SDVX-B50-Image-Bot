@@ -38,9 +38,9 @@ GOLD      = (242, 242, 242)
 # previous version). Selected at render time via data["mode"].
 COLOR_SCHEMES = {
     "nabla": {
-        "bg_top":    (3, 16, 7),      # near-black green, top-left
-        "bg_bottom": (11, 63, 18),    # rich, saturated green, bottom-right
-        "card_tint": (190, 255, 200), # soft mint-green card highlight
+        "bg_top":    (12, 13, 15),    # near-black grey, top-left
+        "bg_bottom": (58, 60, 65),    # lighter slate grey, bottom-right
+        "card_tint": (225, 228, 232), # soft cool-white card highlight
         "label":     "NABLA VF B50",
     },
     "exceed": {
@@ -311,7 +311,7 @@ def _draw_card(img, draw, score, cx, cy, rank, jcache, card_tint):
     for label, fg, bg in [
         (diff_label, diff_style["text"], diff_style["bg"]),
         (lamp_key,   lamp_style["text"], lamp_style["bg"]),
-        (vf_label,   (220, 220, 220),    (40, 60, 40)),
+        (vf_label,   (220, 220, 220),    (45, 48, 45)),
     ]:
         try:
             bw = int(draw.textlength(label, font=f_badge)) + BADGE_PAD_X * 2
