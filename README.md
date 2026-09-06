@@ -69,8 +69,9 @@ python render.py <username>
 python bot.py
 ```
 
-> **Windows quick start:** double-click `start.bat` at the repo root. It uses the
-> venv (creating it + installing deps on first run) and prompts you to set
+> **Windows quick start:** double-click `start.bat` at the repo root. It stops any
+> previously-running bot instance (prevents duplicate logins), uses the venv
+> (creating it + installing deps on first run) and prompts you to set
 > `DISCORD_TOKEN` in `.env` if it's missing.
 
 > If you ever get a `python.exe`/`git.exe` "Application Error", it's almost always

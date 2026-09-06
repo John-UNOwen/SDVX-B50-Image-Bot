@@ -3,6 +3,9 @@ setlocal
 cd /d "%~dp0"
 title SDVX B50 Bot
 
+REM === stop any already-running bot instance (prevents duplicate Discord logins) ===
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0stop_bot.ps1"
+
 REM === use the project venv (create it on first run if missing) ===
 if exist ".venv\Scripts\python.exe" goto :run
 
