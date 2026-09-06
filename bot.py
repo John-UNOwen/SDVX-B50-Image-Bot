@@ -91,36 +91,60 @@ async def b50(
         username,
         mode,
     )
-    # Rendering (jackets + VF) can take tens of seconds; defer so Discord
-    # doesn't treat us as unresponsive.
-    await interaction.response.defer()
 
     if not username:
         username = links.get_link(str(interaction.user.id))
         if not username:
             logger.info("/b50: no username and no link for user %s", interaction.user.id)
-            await interaction.followup.send(
+            await interaction.response.send_message(
                 "No username given and no link found. "
                 "Use `/link <kamaitachi-username>` once, or `/b50 <username>`.",
                 ephemeral=True,
             )
             return
 
-    t0 = time.monotonic()
+    # Validate the Tachi user BEFORE deferring: error replies can then use a
+    # true ephemeral *initial* response. (Discord ignores ephemeral flags on
+    # followups when the deferred response was public.)
     try:
-        rows, total_vf, skipped = await asyncio.to_thread(
-            build_b50, username, exceed=(mode == "exceed")
-        )
+        canonical = await asyncio.to_thread(find_user, username)
     except UserNotFound:
         logger.warning("/b50: user not found: %s", username)
-        await interaction.followup.send(
+        await interaction.response.send_message(
             f"Couldn't find a public Tachi user `{username}`.", ephemeral=True
         )
         return
     except PrivateProfile:
         logger.warning("/b50: private profile: %s", username)
-        await interaction.followup.send(
+        await interaction.response.send_message(
             f"`{username}` exists but their profile is private — scores aren't visible.",
+            ephemeral=True,
+        )
+        return
+    except TachiError as exc:
+        logger.error("/b50: tachi error: %s", exc)
+        await interaction.response.send_message(f"Tachi error: {exc}", ephemeral=True)
+        return
+
+    # Rendering (jackets + VF) can take tens of seconds; defer so Discord
+    # doesn't treat us as unresponsive. The result stays public.
+    await interaction.response.defer()
+
+    t0 = time.monotonic()
+    try:
+        rows, total_vf, skipped = await asyncio.to_thread(
+            build_b50, canonical, exceed=(mode == "exceed")
+        )
+    except UserNotFound:
+        logger.warning("/b50: user not found (after validation): %s", canonical)
+        await interaction.followup.send(
+            f"Couldn't find a public Tachi user `{canonical}`.", ephemeral=True
+        )
+        return
+    except PrivateProfile:
+        logger.warning("/b50: private profile (after validation): %s", canonical)
+        await interaction.followup.send(
+            f"`{canonical}` exists but their profile is private — scores aren't visible.",
             ephemeral=True,
         )
         return
@@ -130,15 +154,15 @@ async def b50(
         return
 
     if not rows:
-        logger.warning("/b50: no charts for %s", username)
+        logger.warning("/b50: no charts for %s", canonical)
         await interaction.followup.send(
-            f"No SDVX charts found for `{username}`. Check the username spelling.",
+            f"No SDVX charts found for `{canonical}`. Check the username spelling.",
             ephemeral=True,
         )
         return
 
     payload = {
-        "username": username,
+        "username": canonical,
         "vf": total_vf,
         "mode": mode,
         "scores": rows,
@@ -156,7 +180,7 @@ async def b50(
 
     logger.info(
         "/b50 done for %s: %.3f VF (%d charts, skipped %d, mode=%s) in %.2fs",
-        username,
+        canonical,
         total_vf,
         len(rows),
         skipped,

@@ -69,10 +69,10 @@ python render.py <username>
 python bot.py
 ```
 
-> **Windows quick start:** double-click `start.bat` at the repo root. It stops any
-> previously-running bot instance (prevents duplicate logins), uses the venv
-> (creating it + installing deps on first run) and prompts you to set
-> `DISCORD_TOKEN` in `.env` if it's missing.
+> **Windows quick start:** double-click `start.bat` at the repo root. It uses a
+> single-instance launcher — it auto-stops any previous bot and refuses to
+> double-run (prevents duplicate logins), uses the venv (creating it + installing
+> deps on first run) and prompts you to set `DISCORD_TOKEN` in `.env` if missing.
 
 > If you ever get a `python.exe`/`git.exe` "Application Error", it's almost always
 > a stray interpreter from Anaconda being picked up. Always run through the venv
