@@ -66,6 +66,10 @@ python render.py <username>
 python bot.py
 ```
 
+> **Windows quick start:** double-click `start.bat` at the repo root. It uses the
+> venv (creating it + installing deps on first run) and prompts you to set
+> `DISCORD_TOKEN` in `.env` if it's missing.
+
 > If you ever get a `python.exe`/`git.exe` "Application Error", it's almost always
 > a stray interpreter from Anaconda being picked up. Always run through the venv
 > (`python` resolves to `.venv`), or call the venv python explicitly:
