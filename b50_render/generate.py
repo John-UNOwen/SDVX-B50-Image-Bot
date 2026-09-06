@@ -19,7 +19,7 @@ GRID_GAP     = 8     # pixels between cards, both directions
 GRID_MARGIN  = 10    # outer margin around the whole card grid
 CARD_WIDTH   = 320
 CARD_HEIGHT  = 72
-NUM_ROWS     = 17    # ceil(50 / 3); row 0 = metadata + cards 49-50, rows 1-16 = cards 1-48
+NUM_ROWS     = 17    # 1 metadata slot + 50 cards in a 3-column grid -> 17 rows
 IMAGE_WIDTH  = GRID_MARGIN * 2 + CARD_WIDTH * NUM_COLS + GRID_GAP * (NUM_COLS - 1)   # 996
 FOOTER_HEIGHT = 36                                                                   # footnote strip below the grid
 IMAGE_HEIGHT = GRID_MARGIN * 2 + CARD_HEIGHT * NUM_ROWS + GRID_GAP * (NUM_ROWS - 1) + FOOTER_HEIGHT  # 1408
@@ -410,8 +410,8 @@ def generate_b50_image(data: dict) -> Image.Image:
         jcache = {sid: f.result() for f, sid in ((f, futures[f]) for f in futures)}
 
     # ── Cards ────────────────────────────────────────────────────────────────
-    # cards 49-50 (i=48,49) → row 0, cols 1-2
-    # cards  1-48 (i= 0-47) → rows 1-16, cols 0-2
+    # Slot 0 is the metadata block. Cards #1-#2 (i=0,1) share the top row with
+    # it; #48-#50 (i=47-49) land on the last row, so rank 1 sits at the top.
     for i, score in enumerate(scores):
         slot = i + 1  # slot 0 is the metadata block
         col  = slot % NUM_COLS

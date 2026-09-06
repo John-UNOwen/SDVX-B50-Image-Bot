@@ -9,7 +9,10 @@ and the B50 total is the sum of the top 50 per-chart VF values.
 
 from __future__ import annotations
 
+import logging
 import math
+
+logger = logging.getLogger(__name__)
 
 # Grade coefficient table (score-based).
 GRADE_COEFF: dict[str, float] = {
@@ -55,8 +58,17 @@ def calculate_vf(level, score, grade, lamp, exceed=False) -> float:
         lamp:   clear-type string (e.g. "EXCESSIVE CLEAR", "ULTIMATE CHAIN")
         exceed: use Exceed Gear coefficient/rounding when True
     """
-    g = GRADE_COEFF.get(grade, 1.0)
-    c = (CLEAR_COEFF_EXCEED if exceed else CLEAR_COEFF).get(lamp, 1.0)
+    g = GRADE_COEFF.get(grade)
+    if g is None:
+        # Tachi never sent this grade before — bouncing to 1.0 would silently
+        # distort the value, so at least make it visible in the logs.
+        logger.warning("VF: unknown grade %r -> coefficient 1.0", grade)
+        g = 1.0
+    table = CLEAR_COEFF_EXCEED if exceed else CLEAR_COEFF
+    c = table.get(lamp)
+    if c is None:
+        logger.warning("VF: unknown lamp %r -> coefficient 1.0", lamp)
+        c = 1.0
     lvl = round_level_for_mode(float(level), exceed)
     base = lvl * (float(score) / 10_000_000) * g * c * 20
     return math.floor(base) * 0.001

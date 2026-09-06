@@ -19,7 +19,7 @@ import sys
 _CONSOLE_FMT = "[%(asctime)s] [%(levelname)8s] %(name)s: %(message)s"
 
 # Modules whose loggers follow LOG_LEVEL; everything else stays at INFO.
-_APP_LOG_NAMES = ("tachi", "links", "bot", "render", "b50_render.generate")
+_APP_LOG_NAMES = ("tachi", "links", "bot", "stats", "vf", "render", "b50_render.generate")
 
 
 def setup_logging(level: str | None = None) -> None:

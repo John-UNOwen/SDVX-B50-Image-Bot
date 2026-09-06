@@ -1,5 +1,6 @@
-discord.py>=2.4.0
-pillow>=10.0.0
-numpy>=2.0.0
-requests>=2.31.0
-python-dotenv>=1.0.0
+# Pinned to the versions this project was developed and verified against.
+discord.py==2.7.1
+pillow==12.3.0
+numpy==2.5.2
+requests==2.34.2
+python-dotenv==1.2.3

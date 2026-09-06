@@ -6,7 +6,7 @@ This Privacy Policy explains what information **sdvx-b50-image-bot** ("the Bot")
 
 ## What the Bot does
 
-The Bot is a Discord application that generates a Sound Voltex **B50** card image (top-50 Volforce) for a given Tachi/Kamaitachi username, using `/b50`, and lets users remember their own username with `/link` (removed with `/unlink`). It also provides `/stats`, which shows aggregate usage counts to anyone in the channel.
+The Bot is a Discord application that generates a Sound Voltex **B50** card image (top-50 Volforce) for a given Tachi/Kamaitachi username, using `/b50`, and lets users remember their own username with `/link` (removed with `/unlink`). It also provides `/stats`, which shows aggregate usage counts to the user who runs it (the reply is only visible to them).
 
 ## Information we collect
 

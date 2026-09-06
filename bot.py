@@ -37,6 +37,14 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
     raise SystemExit("DISCORD_TOKEN is not set (set it in .env or the environment).")
 
+# How long we wait for Tachi before falling back to a public defer. Must stay
+# under Discord's 3-second interaction acknowledgment window.
+BUILD_TIMEOUT = 2.5  # seconds
+
+# At most this many images render at once (jackets + Pillow work is
+# CPU/network heavy, so concurrent bursts shouldn't stack up).
+RENDER_SEM = asyncio.Semaphore(2)
+
 
 class B50Bot(commands.Bot):
     def __init__(self) -> None:
@@ -83,6 +91,41 @@ class B50Bot(commands.Bot):
 bot = B50Bot()
 
 
+async def _send_error(
+    interaction: discord.Interaction, message: str, *, deferred: bool
+) -> None:
+    """Send a user-facing error.
+
+    *deferred* is True when the interaction was already acknowledged with a
+    public defer: Discord ignores the ephemeral flag on followups then, which
+    only happens when Tachi was too slow for the 3s acknowledgment window.
+    """
+    if deferred:
+        await interaction.followup.send(message)
+    else:
+        await interaction.response.send_message(message, ephemeral=True)
+
+
+@bot.tree.error
+async def on_tree_error(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+) -> None:
+    """Global handler: friendly cooldown message + catch-all so an unhandled
+    error never leaves an interaction silently unanswered."""
+    if isinstance(error, app_commands.CommandOnCooldown):
+        await interaction.response.send_message(
+            f"Slow down — try again in {error.retry_after:.0f}s.", ephemeral=True
+        )
+        return
+    logger.error("Unhandled command error: %s", error, exc_info=True)
+    try:
+        await interaction.response.send_message(
+            "Something went wrong. Please try again.", ephemeral=True
+        )
+    except discord.HTTPException:
+        pass  # already responded / impossible to respond; logs have the error
+
+
 @bot.tree.command(name="b50", description="Generate your SDVX B50 image from Tachi")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)
@@ -96,6 +139,7 @@ bot = B50Bot()
         app_commands.Choice(name="Exceed Gear", value="exceed"),
     ]
 )
+@app_commands.checks.cooldown(1, 30.0)  # per user; lookups are expensive
 async def b50(
     interaction: discord.Interaction,
     username: str | None = None,
@@ -123,45 +167,87 @@ async def b50(
 
     stats.record("b50", user_id=str(interaction.user.id), mode=mode, target=username)
 
-    # Fetch + build BEFORE deferring: every user/data error can then be sent as
-    # a true ephemeral *initial* response. (Discord ignores ephemeral flags on
-    # followups when the deferred response was public.)
+    # Fetch BEFORE deferring so user/data errors can be the *initial* response
+    # (Discord ignores the ephemeral flag on followups after a public defer).
+    # If Tachi is too slow for the 3s window, fall back to a public defer and
+    # finish in the background — rare, and errors then have to be public.
+    # ``shield`` keeps the original fetch alive so the slow path reuses it
+    # instead of issuing a second request.
     t0 = time.monotonic()
+    fast = True
+    task = asyncio.create_task(
+        asyncio.to_thread(build_b50, username, exceed=(mode == "exceed"))
+    )
     try:
-        rows, total_vf, skipped = await asyncio.to_thread(
-            build_b50, username, exceed=(mode == "exceed")
+        rows, total_vf, skipped = await asyncio.wait_for(
+            asyncio.shield(task), timeout=BUILD_TIMEOUT
         )
+    except asyncio.TimeoutError:
+        fast = False
+        logger.warning(
+            "/b50: Tachi fetch over %.1fs for %s; deferring publicly",
+            BUILD_TIMEOUT,
+            username,
+        )
+        await interaction.response.defer()
+        try:
+            rows, total_vf, skipped = await task
+        except UserNotFound:
+            logger.warning("/b50: no public sdvx data for %s", username)
+            await _send_error(
+                interaction,
+                f"Couldn't find public SDVX scores for `{username}`. "
+                "Check the username spelling or profile visibility.",
+                deferred=True,
+            )
+            return
+        except PrivateProfile:
+            logger.warning("/b50: private profile: %s", username)
+            await _send_error(
+                interaction,
+                f"`{username}` exists but their profile is private — scores aren't visible.",
+                deferred=True,
+            )
+            return
+        except TachiError as exc:
+            logger.error("/b50: tachi error: %s", exc)
+            await _send_error(interaction, f"Tachi error: {exc}", deferred=True)
+            return
     except UserNotFound:
         logger.warning("/b50: no public sdvx data for %s", username)
-        await interaction.response.send_message(
+        await _send_error(
+            interaction,
             f"Couldn't find public SDVX scores for `{username}`. "
             "Check the username spelling or profile visibility.",
-            ephemeral=True,
+            deferred=False,
         )
         return
     except PrivateProfile:
         logger.warning("/b50: private profile: %s", username)
-        await interaction.response.send_message(
+        await _send_error(
+            interaction,
             f"`{username}` exists but their profile is private — scores aren't visible.",
-            ephemeral=True,
+            deferred=False,
         )
         return
     except TachiError as exc:
         logger.error("/b50: tachi error: %s", exc)
-        await interaction.response.send_message(f"Tachi error: {exc}", ephemeral=True)
+        await _send_error(interaction, f"Tachi error: {exc}", deferred=False)
         return
 
     if not rows:
         logger.warning("/b50: no charts for %s", username)
-        await interaction.response.send_message(
+        await _send_error(
+            interaction,
             f"No SDVX charts found for `{username}`. Check the username spelling.",
-            ephemeral=True,
+            deferred=not fast,
         )
         return
 
-    # Data is ready (~1-2s, inside Discord's 3s window). Now defer for the slow
-    # render (jackets + image); the result stays public.
-    await interaction.response.defer()
+    # Data is ready (fast path: inside Discord's 3s window). Now defer for the
+    # slow render (jackets + image); the result stays public.
+    if fast:
+        await interaction.response.defer()
 
     payload = {
         "username": username,
@@ -170,15 +256,19 @@ async def b50(
         "scores": rows,
     }
     try:
-        img = await asyncio.to_thread(generate_b50_image, payload)
+        async with RENDER_SEM:
+            img = await asyncio.to_thread(generate_b50_image, payload)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG", optimize=True)
+            buf.seek(0)
     except Exception as exc:  # noqa: BLE001
-        logger.error("/b50: render failed: %s", exc)
-        await interaction.followup.send(f"Image rendering failed: {exc}", ephemeral=True)
+        logger.error("/b50: render failed: %s", exc, exc_info=True)
+        # After a public defer we cannot hide followups; keep the message
+        # neutral and leave the details in the logs.
+        await interaction.followup.send(
+            "Something went wrong while rendering the image. Please try again."
+        )
         return
-
-    buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=True)
-    buf.seek(0)
 
     logger.info(
         "/b50 done for %s: %.3f VF (%d charts, skipped %d, mode=%s) in %.2fs",
@@ -228,7 +318,14 @@ async def link(interaction: discord.Interaction, username: str) -> None:
         )
         return
 
-    links.set_link(str(interaction.user.id), canonical)
+    if not links.set_link(str(interaction.user.id), canonical):
+        logger.error("/link: could not store link for user %s", interaction.user.id)
+        await interaction.response.send_message(
+            "Couldn't save the link (storage problem). Try again later.",
+            ephemeral=True,
+        )
+        return
+
     await interaction.response.send_message(
         f"Linked **{interaction.user.display_name}** → `{canonical}`. "
         "You can now run `/b50` without an argument.",
@@ -245,6 +342,12 @@ async def unlink(interaction: discord.Interaction) -> None:
     logger.info("/unlink by %s (%s)", interaction.user, interaction.user.id)
     stats.record("unlink", user_id=str(interaction.user.id))
     removed = links.unlink(str(interaction.user.id))
+    if removed is None:
+        logger.error("/unlink: link store error for user %s", interaction.user.id)
+        await interaction.response.send_message(
+            "Couldn't read the link store. Try again later.", ephemeral=True
+        )
+        return
     if removed:
         await interaction.response.send_message(
             "Unlinked. Use `/link <username>` to link again.", ephemeral=True

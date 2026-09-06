@@ -62,7 +62,7 @@ python -m pip install -r requirements.txt
 # 3) configure the bot token
 copy .env.example .env              # then edit DISCORD_TOKEN
 #    (create a bot at https://discord.com/developers/applications,
-#     enable the Message Content intent, invite it to your server)
+#     invite it to your server; slash commands need no special message intents)
 
 # 4) test the pipeline without Discord (produces ./b50.png)
 python render.py <username>
@@ -124,6 +124,9 @@ The jacket cache is a named volume, so covers aren't re-downloaded on every rest
   `LOG_LEVEL=DEBUG` in `.env` (or the environment) for per-request detail.
 - **Statistics:** every command invocation (type, `/b50` mode, user, target) is
   recorded in `stats.db` (gitignored); `/stats` shows the totals.
+- **Rate limiting:** `/b50` is limited to one run per user per 30 seconds and
+  at most two images render at once, so a burst of requests can't hammer Tachi
+  or the cover-art service.
 - **Slash command visibility:** global sync (used for DMs + all servers) can
   take up to ~1 hour to appear in clients. Set `GUILD_ID` in `.env` for
   instant availability in your own server. Commands in **DMs** additionally

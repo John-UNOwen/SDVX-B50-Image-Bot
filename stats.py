@@ -68,17 +68,24 @@ def record(
 
 
 def summary() -> dict:
-    """Return total / last-24h counts and per-(command, mode) breakdown."""
-    conn = _connect()
+    """Return total / last-24h counts and per-(command, mode) breakdown.
+
+    Returns zeroed counts when the store cannot be read (never raises).
+    """
     try:
-        total = conn.execute("SELECT COUNT(*) FROM queries").fetchone()[0]
-        today = conn.execute(
-            "SELECT COUNT(*) FROM queries WHERE created_at >= ?",
-            (int(time.time()) - 86400,),
-        ).fetchone()[0]
-        by_type = conn.execute(
-            "SELECT command, mode, COUNT(*) FROM queries GROUP BY command, mode ORDER BY 3 DESC"
-        ).fetchall()
-        return {"total": total, "today": today, "by_type": by_type}
-    finally:
-        conn.close()
+        conn = _connect()
+        try:
+            total = conn.execute("SELECT COUNT(*) FROM queries").fetchone()[0]
+            today = conn.execute(
+                "SELECT COUNT(*) FROM queries WHERE created_at >= ?",
+                (int(time.time()) - 86400,),
+            ).fetchone()[0]
+            by_type = conn.execute(
+                "SELECT command, mode, COUNT(*) FROM queries GROUP BY command, mode ORDER BY 3 DESC"
+            ).fetchall()
+            return {"total": total, "today": today, "by_type": by_type}
+        finally:
+            conn.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("stats summary failed: %s", exc)
+        return {"total": 0, "today": 0, "by_type": []}
