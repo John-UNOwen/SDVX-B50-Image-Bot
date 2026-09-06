@@ -2,7 +2,7 @@ MIT License
 
 Copyright (c) 2025 Tung Vu (original code in b50_render/generate.py and the VF
 calculation, from whiteou7/new-vf-calc)
-Copyright (c) 2025 sdvx-b50-discord-bot contributors (Discord bot glue in
+Copyright (c) 2025 sdvx-b50-image-bot contributors (Discord bot glue in
 bot.py, tachi.py, vf.py, render.py)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

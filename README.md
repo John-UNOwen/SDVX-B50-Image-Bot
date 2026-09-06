@@ -1,4 +1,4 @@
-# sdvx-b50-discord-bot
+# sdvx-b50-image-bot
 
 A Discord bot that renders a Sound Voltex **B50** image (top-50 VF) for any
 public [Tachi](https://kamai.tachi.ac) (Kamaitachi) user.
@@ -96,12 +96,12 @@ docker compose up -d --build
 Or without compose:
 
 ```bash
-docker build -t sdvx-b50-bot .
-docker run -d --name sdvx-b50-bot \
+docker build -t sdvx-b50-image-bot .
+docker run -d --name sdvx-b50-image-bot \
   -e DISCORD_TOKEN=your-bot-token-here \
   -v b50-jacket-cache:/app/b50_render/.jacket_cache \
   --restart unless-stopped \
-  sdvx-b50-bot
+  sdvx-b50-image-bot
 ```
 
 The jacket cache is a named volume, so covers aren't re-downloaded on every restart.

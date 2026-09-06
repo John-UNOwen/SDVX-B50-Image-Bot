@@ -1,8 +1,8 @@
-# Privacy Policy — sdvx-b50-discord-bot
+# Privacy Policy — sdvx-b50-image-bot
 
 _Effective date: September 5, 2026_
 
-This Privacy Policy explains what information **sdvx-b50-discord-bot** ("the Bot") collects, stores, and uses. By using the Bot, you agree to this policy.
+This Privacy Policy explains what information **sdvx-b50-image-bot** ("the Bot") collects, stores, and uses. By using the Bot, you agree to this policy.
 
 ## What the Bot does
 

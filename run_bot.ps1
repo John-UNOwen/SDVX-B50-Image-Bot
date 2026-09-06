@@ -14,7 +14,7 @@ function Get-BotProcesses {
 }
 
 # --- Exclusive run: exactly one launcher can own the mutex -------------------
-$mutex = New-Object System.Threading.Mutex($false, 'sdvx-b50-bot')
+$mutex = New-Object System.Threading.Mutex($false, 'sdvx-b50-image-bot')
 $owned = $mutex.WaitOne(0)
 if (-not $owned) {
     Write-Host '[start] Bot is already running in another window. Use that window.'

@@ -1,4 +1,4 @@
-# sdvx-b50-discord-bot — deployment image
+# sdvx-b50-image-bot — deployment image
 # Local dev used Python 3.14; the container uses 3.12-slim for ecosystem
 # stability and battle-tested wheels (discord.py / Pillow / numpy).
 FROM python:3.12-slim

@@ -3,7 +3,7 @@
 services:
   b50-bot:
     build: .
-    container_name: sdvx-b50-bot
+    container_name: sdvx-b50-image-bot
     restart: unless-stopped
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
