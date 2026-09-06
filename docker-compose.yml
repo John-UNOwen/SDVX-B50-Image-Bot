@@ -9,6 +9,10 @@ services:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
     volumes:
       - b50-jacket-cache:/app/b50_render/.jacket_cache
+      - b50-links:/app/links.db
+      - b50-stats:/app/stats.db
 
 volumes:
   b50-jacket-cache:
+  b50-links:
+  b50-stats:

@@ -17,6 +17,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 import links
+import stats
 from b50_render.generate import generate_b50_image
 from logsetup import setup_logging
 from tachi import (
@@ -96,12 +97,15 @@ async def b50(
         username = links.get_link(str(interaction.user.id))
         if not username:
             logger.info("/b50: no username and no link for user %s", interaction.user.id)
+            stats.record("b50", user_id=str(interaction.user.id), mode=mode, status="no-link")
             await interaction.response.send_message(
                 "No username given and no link found. "
                 "Use `/link <kamaitachi-username>` once, or `/b50 <username>`.",
                 ephemeral=True,
             )
             return
+
+    stats.record("b50", user_id=str(interaction.user.id), mode=mode, target=username)
 
     # Validate the Tachi user BEFORE deferring: error replies can then use a
     # true ephemeral *initial* response. (Discord ignores ephemeral flags on
@@ -200,6 +204,7 @@ async def link(interaction: discord.Interaction, username: str) -> None:
     logger.info(
         "/link by %s (%s) -> %s", interaction.user, interaction.user.id, username
     )
+    stats.record("link", user_id=str(interaction.user.id), target=username)
     try:
         canonical = await asyncio.to_thread(find_user, username)
     except UserNotFound:
@@ -236,6 +241,7 @@ async def link(interaction: discord.Interaction, username: str) -> None:
 )
 async def unlink(interaction: discord.Interaction) -> None:
     logger.info("/unlink by %s (%s)", interaction.user, interaction.user.id)
+    stats.record("unlink", user_id=str(interaction.user.id))
     removed = links.unlink(str(interaction.user.id))
     if removed:
         await interaction.response.send_message(
@@ -246,6 +252,16 @@ async def unlink(interaction: discord.Interaction) -> None:
             "You don't have a link to remove. Use `/link <username>` to add one.",
             ephemeral=True,
         )
+
+
+@bot.tree.command(name="stats", description="Show bot query statistics")
+async def stats_cmd(interaction: discord.Interaction) -> None:
+    s = stats.summary()
+    lines = [f"**Total queries: {s['total']}** (last 24h: {s['today']})"]
+    for cmd, mode, count in s["by_type"]:
+        label = cmd if not mode else f"{cmd} ({mode})"
+        lines.append(f"• {label}: **{count}**")
+    await interaction.response.send_message("\n".join(lines))
 
 
 bot.run(TOKEN)

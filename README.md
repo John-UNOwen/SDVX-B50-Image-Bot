@@ -29,9 +29,11 @@ needed.
 ## Project layout
 
 ```
-bot.py              Discord bot (discord.py) with the /b50 command
+bot.py              Discord bot (discord.py): /b50, /link, /unlink, /stats
 tachi.py            Tachi client: fetch pbs, resolve levels, build top-50 rows
 vf.py               VF calculation (coefficient tables + formula)
+links.py            Discord-user <-> Tachi-username link store (SQLite)
+stats.py            Query statistics recorder (SQLite) + /stats viewer
 render.py           CLI test driver (no Discord) - python render.py <username>
 b50_render/
   generate.py       Pillow image renderer (adapted)
@@ -120,6 +122,8 @@ The jacket cache is a named volume, so covers aren't re-downloaded on every rest
 - **Logging:** every Tachi lookup, link action, command invocation and render is
   logged to the console. `INFO` (default) logs one line per action; set
   `LOG_LEVEL=DEBUG` in `.env` (or the environment) for per-request detail.
+- **Statistics:** every command invocation (type, `/b50` mode, user, target) is
+  recorded in `stats.db` (gitignored); `/stats` shows the totals.
 
 ## Credit / license
 

@@ -20,3 +20,6 @@ b50_render/.jacket_cache/
 
 # Discord <-> Tachi link database
 links.db
+
+# Query statistics database
+stats.db
