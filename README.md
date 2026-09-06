@@ -4,7 +4,7 @@ A Discord bot that renders a Sound Voltex **B50** image (top-50 VF) for any
 public [Tachi](https://kamai.tachi.ac) (Kamaitachi) user.
 
 ```
-/b50 <username> [mode]   ->  posts a b50.png card + the player's total VF
+/b50 <username> [mode]   ->  posts only the b50.png card (total VF is in the image)
                              mode: nabla (default) | exceed
                              username is optional if you're linked (/link)
 /link <username>         ->  link your Discord account to your Tachi username

@@ -140,21 +140,18 @@ async def b50(
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
 
-    ver = "Exceed Gear" if mode == "exceed" else "Nabla"
-    note = f" · {ver}" + (f" · skipped {skipped} chart(s)" if skipped else "")
     logger.info(
-        "/b50 done for %s: %.3f VF (%d charts, skipped %d) in %.2fs",
+        "/b50 done for %s: %.3f VF (%d charts, skipped %d, mode=%s) in %.2fs",
         username,
         total_vf,
         len(rows),
         skipped,
+        mode,
         time.monotonic() - t0,
     )
-    # The B50 result stays public so players can share it.
-    await interaction.followup.send(
-        content=f"**{total_vf:.3f} VF**{note}",
-        file=discord.File(buf, filename="b50.png"),
-    )
+    # The B50 result stays public so players can share it; the image itself
+    # shows the total VF, so no text message is sent.
+    await interaction.followup.send(file=discord.File(buf, filename="b50.png"))
 
 
 @bot.tree.command(
