@@ -1,0 +1,16 @@
+# Keep the image lean: exclude VCS, local env, test artifacts, and caches.
+.git
+.gitignore
+.env
+.venv/
+venv/
+_ref/
+_render-test/
+b50.png
+.dsh-vision-router/
+__pycache__/
+*.py[cod]
+b50_render/.jacket_cache/
+
+# Keep: *.py, b50_render/**, requirements.txt, README.md, LICENSE,
+#        .env.example, Dockerfile, assets (fonts) inside b50_render/asset/

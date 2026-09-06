@@ -1,0 +1,19 @@
+# Project / working artifacts (not part of the source)
+b50.png
+_ref/
+_render-test/
+.dsh-vision-router/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets — never commit
+.env
+.env.local
+
+# Renderer jacket cache (downloaded covers)
+b50_render/.jacket_cache/

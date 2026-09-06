@@ -1,0 +1,14 @@
+# docker-compose up -d --build
+# Put DISCORD_TOKEN in a .env file next to this file, or in the environment.
+services:
+  b50-bot:
+    build: .
+    container_name: sdvx-b50-bot
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+    volumes:
+      - b50-jacket-cache:/app/b50_render/.jacket_cache
+
+volumes:
+  b50-jacket-cache:

@@ -1,0 +1,7 @@
+# Normalise line endings across OSes
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.ttf binary
+*.png binary
