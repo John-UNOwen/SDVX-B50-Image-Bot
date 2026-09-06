@@ -1,11 +1,11 @@
 # Single-instance launcher for the SDVX B50 bot.
 #
-# Guarded by a lock dir in %TEMP% so that launching start.bat twice at the same
-# instant still results in exactly ONE bot. Duplicate logins with the same
-# token cause "The application did not respond".
+# Uses a named OS mutex, which is atomic even when start.bat is launched twice
+# at the exact same instant, and which is automatically released if we crash
+# (no stale-lock problem). Duplicate logins with the same token cause
+# "The application did not respond" and make the bot flap offline.
 
 $ErrorActionPreference = 'Stop'
-$lock = Join-Path $env:TEMP 'sdvx-b50-bot.lock'
 $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 
 function Get-BotProcesses {
@@ -13,48 +13,26 @@ function Get-BotProcesses {
         Where-Object { $_.CommandLine -match 'bot\.py' }
 }
 
-# --- Acquire the exclusive lock (atomic mkdir; stale locks are cleared) ------
-$acquired = $false
-for ($attempt = 0; $attempt -lt 5 -and -not $acquired; $attempt++) {
-    try {
-        New-Item -ItemType Directory -Path $lock -ErrorAction Stop | Out-Null
-        $acquired = $true
-    } catch {
-        if (Get-BotProcesses) {
-            Write-Host '[start] Bot is already running in another window. Use that window.'
-            exit 1
-        }
-        # Lock exists but no bot is running: either a concurrent launcher is
-        # still starting (give it a moment to bring its bot up), or it's a
-        # stale lock from a crash. Re-check, then clear and retry.
-        Start-Sleep -Seconds 2
-        if (Get-BotProcesses) {
-            Write-Host '[start] Bot is already running in another window. Use that window.'
-            exit 1
-        }
-        Remove-Item -LiteralPath $lock -Recurse -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 500
-    }
-}
-if (-not $acquired) {
-    Write-Host '[start] Could not acquire the run lock. Try again.'
+# --- Exclusive run: exactly one launcher can own the mutex -------------------
+$mutex = New-Object System.Threading.Mutex($false, 'sdvx-b50-bot')
+$owned = $mutex.WaitOne(0)
+if (-not $owned) {
+    Write-Host '[start] Bot is already running in another window. Use that window.'
     exit 1
 }
 
-# --- Stop any leftover instance, then start exactly one ----------------------
-Get-BotProcesses | ForEach-Object {
-    Write-Host "[start] stopping old bot pid $($_.ProcessId)"
-    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-}
-Start-Sleep -Milliseconds 400
-Get-BotProcesses | ForEach-Object {
-    Write-Host "[start] stopping straggler bot pid $($_.ProcessId)"
-    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-}
-
 try {
+    # Defensive: stop any bot instance from an older launcher version.
+    Get-BotProcesses | ForEach-Object {
+        Write-Host "[start] stopping old bot pid $($_.ProcessId)"
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
     Write-Host '[start] Starting bot (press Ctrl+C to stop)...'
     & $python bot.py
 } finally {
-    Remove-Item -LiteralPath $lock -Recurse -Force -ErrorAction SilentlyContinue
+    try {
+        $mutex.ReleaseMutex()
+    } catch {
+        # mutex may already be gone if the process was killed mid-run
+    }
 }
