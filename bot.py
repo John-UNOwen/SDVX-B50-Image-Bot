@@ -49,12 +49,26 @@ class B50Bot(commands.Bot):
         )
 
     async def setup_hook(self) -> None:
+        # Global sync — works in DMs and every server, but Discord can take
+        # up to ~1 hour to propagate the commands to clients.
         try:
             await self.tree.sync()
-            logger.info("Slash command tree synced")
+            logger.info("Slash command tree synced (global)")
         except Exception as exc:  # noqa: BLE001
             # A sync failure must not stop the bot from coming online.
             logger.error("Slash command tree sync failed: %s", exc)
+
+        # Optional instant per-guild sync (GUILD_ID in .env): commands show up
+        # immediately in that server.
+        guild_id = os.getenv("GUILD_ID")
+        if guild_id:
+            try:
+                guild = await self.fetch_guild(int(guild_id))
+                self.tree.copy_global_to(guild=guild)
+                await self.tree.sync(guild=guild)
+                logger.info("Slash command tree synced to guild %s", guild_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Guild sync failed (GUILD_ID=%s): %s", guild_id, exc)
 
     async def on_ready(self) -> None:
         logger.info("Bot online as %s (%s)", self.user, self.user.id)

@@ -124,6 +124,11 @@ The jacket cache is a named volume, so covers aren't re-downloaded on every rest
   `LOG_LEVEL=DEBUG` in `.env` (or the environment) for per-request detail.
 - **Statistics:** every command invocation (type, `/b50` mode, user, target) is
   recorded in `stats.db` (gitignored); `/stats` shows the totals.
+- **Slash command visibility:** global sync (used for DMs + all servers) can
+  take up to ~1 hour to appear in clients. Set `GUILD_ID` in `.env` for
+  instant availability in your own server. Commands in **DMs** additionally
+  require the app to have a **Privacy Policy URL** set in the Developer Portal
+  (Apps → General Information).
 
 ## Credit / license
 
