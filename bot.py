@@ -123,15 +123,20 @@ async def b50(
 
     stats.record("b50", user_id=str(interaction.user.id), mode=mode, target=username)
 
-    # Validate the Tachi user BEFORE deferring: error replies can then use a
-    # true ephemeral *initial* response. (Discord ignores ephemeral flags on
+    # Fetch + build BEFORE deferring: every user/data error can then be sent as
+    # a true ephemeral *initial* response. (Discord ignores ephemeral flags on
     # followups when the deferred response was public.)
+    t0 = time.monotonic()
     try:
-        canonical = await asyncio.to_thread(find_user, username)
+        rows, total_vf, skipped = await asyncio.to_thread(
+            build_b50, username, exceed=(mode == "exceed")
+        )
     except UserNotFound:
-        logger.warning("/b50: user not found: %s", username)
+        logger.warning("/b50: no public sdvx data for %s", username)
         await interaction.response.send_message(
-            f"Couldn't find a public Tachi user `{username}`.", ephemeral=True
+            f"Couldn't find public SDVX scores for `{username}`. "
+            "Check the username spelling or profile visibility.",
+            ephemeral=True,
         )
         return
     except PrivateProfile:
@@ -146,43 +151,20 @@ async def b50(
         await interaction.response.send_message(f"Tachi error: {exc}", ephemeral=True)
         return
 
-    # Rendering (jackets + VF) can take tens of seconds; defer so Discord
-    # doesn't treat us as unresponsive. The result stays public.
+    if not rows:
+        logger.warning("/b50: no charts for %s", username)
+        await interaction.response.send_message(
+            f"No SDVX charts found for `{username}`. Check the username spelling.",
+            ephemeral=True,
+        )
+        return
+
+    # Data is ready (~1-2s, inside Discord's 3s window). Now defer for the slow
+    # render (jackets + image); the result stays public.
     await interaction.response.defer()
 
-    t0 = time.monotonic()
-    try:
-        rows, total_vf, skipped = await asyncio.to_thread(
-            build_b50, canonical, exceed=(mode == "exceed")
-        )
-    except UserNotFound:
-        logger.warning("/b50: user not found (after validation): %s", canonical)
-        await interaction.followup.send(
-            f"Couldn't find a public Tachi user `{canonical}`.", ephemeral=True
-        )
-        return
-    except PrivateProfile:
-        logger.warning("/b50: private profile (after validation): %s", canonical)
-        await interaction.followup.send(
-            f"`{canonical}` exists but their profile is private — scores aren't visible.",
-            ephemeral=True,
-        )
-        return
-    except TachiError as exc:
-        logger.error("/b50: tachi error: %s", exc)
-        await interaction.followup.send(f"Tachi error: {exc}", ephemeral=True)
-        return
-
-    if not rows:
-        logger.warning("/b50: no charts for %s", canonical)
-        await interaction.followup.send(
-            f"No SDVX charts found for `{canonical}`. Check the username spelling.",
-            ephemeral=True,
-        )
-        return
-
     payload = {
-        "username": canonical,
+        "username": username,
         "vf": total_vf,
         "mode": mode,
         "scores": rows,
@@ -200,7 +182,7 @@ async def b50(
 
     logger.info(
         "/b50 done for %s: %.3f VF (%d charts, skipped %d, mode=%s) in %.2fs",
-        canonical,
+        username,
         total_vf,
         len(rows),
         skipped,
