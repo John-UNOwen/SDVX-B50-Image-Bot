@@ -17,3 +17,6 @@ venv/
 
 # Renderer jacket cache (downloaded covers)
 b50_render/.jacket_cache/
+
+# Discord <-> Tachi link database
+links.db

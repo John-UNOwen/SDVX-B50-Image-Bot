@@ -6,6 +6,9 @@ public [Tachi](https://kamai.tachi.ac) (Kamaitachi) user.
 ```
 /b50 <username> [mode]   ->  posts a b50.png card + the player's total VF
                              mode: nabla (default) | exceed
+                             username is optional if you're linked (/link)
+/link <username>         ->  link your Discord account to your Tachi username
+/unlink                  ->  remove your link
 ```
 
 ## What it does

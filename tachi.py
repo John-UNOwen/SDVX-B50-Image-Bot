@@ -75,6 +75,31 @@ def fetch_pbs(username: str):
     return pbs, charts
 
 
+def find_user(username: str) -> str:
+    """Return the canonical Tachi username if the user exists (light validation).
+
+    Used by /link to confirm the username before storing it. Raises
+    :class:`UserNotFound`, :class:`PrivateProfile` or :class:`TachiError`.
+    """
+    url = f"{API_BASE}/users/{username}"
+    try:
+        r = requests.get(url, timeout=20)
+    except requests.RequestException as exc:
+        raise TachiError(f"Could not reach Tachi: {exc}") from exc
+    if r.status_code == 404:
+        raise UserNotFound(username)
+    if r.status_code in (401, 403):
+        raise PrivateProfile(username)
+    try:
+        data = r.json()
+    except ValueError as exc:
+        raise TachiError(f"Bad response from Tachi (HTTP {r.status_code})") from exc
+    if data.get("success") is False:
+        raise TachiError(data.get("description") or "Tachi returned an error")
+    body = data.get("body", {})
+    return body.get("username") or username
+
+
 def build_b50(username: str, exceed: bool = False, limit: int = 50):
     """Fetch pbs, compute VF per chart, and return ``(top_rows, total_vf, skipped)``.
 
