@@ -48,7 +48,21 @@ class B50Bot(commands.Bot):
         )
 
     async def setup_hook(self) -> None:
-        await self.tree.sync()
+        try:
+            await self.tree.sync()
+            logger.info("Slash command tree synced")
+        except Exception as exc:  # noqa: BLE001
+            # A sync failure must not stop the bot from coming online.
+            logger.error("Slash command tree sync failed: %s", exc)
+
+    async def on_ready(self) -> None:
+        logger.info("Bot online as %s (%s)", self.user, self.user.id)
+        await self.change_presence(
+            status=discord.Status.online,
+            activity=discord.Activity(
+                type=discord.ActivityType.listening, name="/b50"
+            ),
+        )
 
 
 bot = B50Bot()
