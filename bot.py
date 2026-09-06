@@ -87,7 +87,8 @@ async def b50(
             logger.info("/b50: no username and no link for user %s", interaction.user.id)
             await interaction.followup.send(
                 "No username given and no link found. "
-                "Use `/link <kamaitachi-username>` once, or `/b50 <username>`."
+                "Use `/link <kamaitachi-username>` once, or `/b50 <username>`.",
+                ephemeral=True,
             )
             return
 
@@ -99,24 +100,26 @@ async def b50(
     except UserNotFound:
         logger.warning("/b50: user not found: %s", username)
         await interaction.followup.send(
-            f"Couldn't find a public Tachi user `{username}`."
+            f"Couldn't find a public Tachi user `{username}`.", ephemeral=True
         )
         return
     except PrivateProfile:
         logger.warning("/b50: private profile: %s", username)
         await interaction.followup.send(
-            f"`{username}` exists but their profile is private — scores aren't visible."
+            f"`{username}` exists but their profile is private — scores aren't visible.",
+            ephemeral=True,
         )
         return
     except TachiError as exc:
         logger.error("/b50: tachi error: %s", exc)
-        await interaction.followup.send(f"Tachi error: {exc}")
+        await interaction.followup.send(f"Tachi error: {exc}", ephemeral=True)
         return
 
     if not rows:
         logger.warning("/b50: no charts for %s", username)
         await interaction.followup.send(
-            f"No SDVX charts found for `{username}`. Check the username spelling."
+            f"No SDVX charts found for `{username}`. Check the username spelling.",
+            ephemeral=True,
         )
         return
 
@@ -130,7 +133,7 @@ async def b50(
         img = await asyncio.to_thread(generate_b50_image, payload)
     except Exception as exc:  # noqa: BLE001
         logger.error("/b50: render failed: %s", exc)
-        await interaction.followup.send(f"Image rendering failed: {exc}")
+        await interaction.followup.send(f"Image rendering failed: {exc}", ephemeral=True)
         return
 
     buf = io.BytesIO()
@@ -147,6 +150,7 @@ async def b50(
         skipped,
         time.monotonic() - t0,
     )
+    # The B50 result stays public so players can share it.
     await interaction.followup.send(
         content=f"**{total_vf:.3f} VF**{note}",
         file=discord.File(buf, filename="b50.png"),
@@ -166,25 +170,29 @@ async def link(interaction: discord.Interaction, username: str) -> None:
     except UserNotFound:
         logger.warning("/link: user not found: %s", username)
         await interaction.response.send_message(
-            f"Couldn't find a Tachi user `{username}`."
+            f"Couldn't find a Tachi user `{username}`.", ephemeral=True
         )
         return
     except PrivateProfile:
         logger.warning("/link: private profile: %s", username)
         await interaction.response.send_message(
             f"`{username}` exists but their profile is private — scores aren't visible. "
-            "Make it public, then link again."
+            "Make it public, then link again.",
+            ephemeral=True,
         )
         return
     except TachiError as exc:
         logger.error("/link: tachi error: %s", exc)
-        await interaction.response.send_message(f"Tachi error: {exc}")
+        await interaction.response.send_message(
+            f"Tachi error: {exc}", ephemeral=True
+        )
         return
 
     links.set_link(str(interaction.user.id), canonical)
     await interaction.response.send_message(
         f"Linked **{interaction.user.display_name}** → `{canonical}`. "
-        "You can now run `/b50` without an argument."
+        "You can now run `/b50` without an argument.",
+        ephemeral=True,
     )
 
 
@@ -196,11 +204,12 @@ async def unlink(interaction: discord.Interaction) -> None:
     removed = links.unlink(str(interaction.user.id))
     if removed:
         await interaction.response.send_message(
-            "Unlinked. Use `/link <username>` to link again."
+            "Unlinked. Use `/link <username>` to link again.", ephemeral=True
         )
     else:
         await interaction.response.send_message(
-            "You don't have a link to remove. Use `/link <username>` to add one."
+            "You don't have a link to remove. Use `/link <username>` to add one.",
+            ephemeral=True,
         )
 
 
