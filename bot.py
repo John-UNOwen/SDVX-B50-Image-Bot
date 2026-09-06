@@ -283,7 +283,7 @@ async def stats_cmd(interaction: discord.Interaction) -> None:
     for cmd, mode, count in s["by_type"]:
         label = cmd if not mode else f"{cmd} ({mode})"
         lines.append(f"• {label}: **{count}**")
-    await interaction.response.send_message("\n".join(lines))
+    await interaction.response.send_message("\n".join(lines), ephemeral=True)
 
 
 bot.run(TOKEN)
