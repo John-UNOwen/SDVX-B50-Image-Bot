@@ -84,6 +84,8 @@ bot = B50Bot()
 
 
 @bot.tree.command(name="b50", description="Generate your SDVX B50 image from Tachi")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.describe(
     username="Your Tachi/Kamaitachi username (optional if you're linked)",
     mode="Which VF version to use",
@@ -213,6 +215,8 @@ async def b50(
 @bot.tree.command(
     name="link", description="Link your Discord account to a Tachi/Kamaitachi username"
 )
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.describe(username="Your Tachi/Kamaitachi username")
 async def link(interaction: discord.Interaction, username: str) -> None:
     logger.info(
@@ -253,6 +257,8 @@ async def link(interaction: discord.Interaction, username: str) -> None:
 @bot.tree.command(
     name="unlink", description="Unlink your Discord account from your Tachi username"
 )
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 async def unlink(interaction: discord.Interaction) -> None:
     logger.info("/unlink by %s (%s)", interaction.user, interaction.user.id)
     stats.record("unlink", user_id=str(interaction.user.id))
@@ -269,6 +275,8 @@ async def unlink(interaction: discord.Interaction) -> None:
 
 
 @bot.tree.command(name="stats", description="Show bot query statistics")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 async def stats_cmd(interaction: discord.Interaction) -> None:
     s = stats.summary()
     lines = [f"**Total queries: {s['total']}** (last 24h: {s['today']})"]
