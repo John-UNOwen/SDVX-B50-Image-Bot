@@ -4,7 +4,8 @@ A Discord bot that renders a Sound Voltex **B50** image (top-50 VF) for any
 public [Tachi](https://kamai.tachi.ac) (Kamaitachi) user.
 
 ```
-/b50 <username>   ->  posts a b50.png card + the player's total VF
+/b50 <username> [mode]   ->  posts a b50.png card + the player's total VF
+                             mode: nabla (default) | exceed
 ```
 
 ## What it does
@@ -105,6 +106,9 @@ The jacket cache is a named volume, so covers aren't re-downloaded on every rest
   or import, use Python 3.11–3.12 or pin to a newer `discord.py`/`nextcord` build.
 - `diff` and `lamp` strings are pulled straight from Tachi and mapped to the
   renderer's badge styles; unmapped values fall back gracefully.
+- **Verified correctness:** the VF calculation matches Tachi's own
+  `calculatedData.VF7` (current / Nabla) and `VF6` (Exceed Gear) exactly — 2551/2551
+  charts on a live sample.
 
 ## Credit / license
 

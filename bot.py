@@ -1,4 +1,4 @@
-"""Discord bot: ``/b50 <username>`` -> SDVX B50 image.
+"""Discord bot: ``/b50 <username> [mode]`` -> SDVX B50 image.
 
 Run:  set DISCORD_TOKEN=... then  python bot.py   (or set it in ``.env``).
 """
@@ -42,14 +42,27 @@ bot = B50Bot()
 
 
 @bot.tree.command(name="b50", description="Generate your SDVX B50 image from Tachi")
-@app_commands.describe(username="Your Tachi/Kamaitachi username")
-async def b50(interaction: discord.Interaction, username: str) -> None:
+@app_commands.describe(
+    username="Your Tachi/Kamaitachi username",
+    mode="Which VF version to use",
+)
+@app_commands.choices(
+    mode=[
+        app_commands.Choice(name="Nabla (current)", value="nabla"),
+        app_commands.Choice(name="Exceed Gear", value="exceed"),
+    ]
+)
+async def b50(
+    interaction: discord.Interaction, username: str, mode: str = "nabla"
+) -> None:
     # Rendering (jackets + VF) can take tens of seconds; defer so Discord
     # doesn't treat us as unresponsive.
     await interaction.response.defer()
 
     try:
-        rows, total_vf, skipped = await asyncio.to_thread(build_b50, username)
+        rows, total_vf, skipped = await asyncio.to_thread(
+            build_b50, username, exceed=(mode == "exceed")
+        )
     except UserNotFound:
         await interaction.followup.send(
             f"Couldn't find a public Tachi user `{username}`."
@@ -73,7 +86,7 @@ async def b50(interaction: discord.Interaction, username: str) -> None:
     payload = {
         "username": username,
         "vf": total_vf,
-        "mode": "nabla",
+        "mode": mode,
         "scores": rows,
     }
     try:
@@ -86,7 +99,8 @@ async def b50(interaction: discord.Interaction, username: str) -> None:
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
 
-    note = f" · skipped {skipped} chart(s)" if skipped else ""
+    ver = "Exceed Gear" if mode == "exceed" else "Nabla"
+    note = f" · {ver}" + (f" · skipped {skipped} chart(s)" if skipped else "")
     await interaction.followup.send(
         content=f"**{total_vf:.3f} VF**{note}",
         file=discord.File(buf, filename="b50.png"),
