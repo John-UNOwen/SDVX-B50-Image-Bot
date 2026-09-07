@@ -43,7 +43,7 @@ BUILD_TIMEOUT = 2.5  # seconds
 
 # At most this many images render at once (jackets + Pillow work is
 # CPU/network heavy, so concurrent bursts shouldn't stack up).
-RENDER_SEM = asyncio.Semaphore(2)
+RENDER_SEM = asyncio.Semaphore(4)
 
 
 class B50Bot(commands.Bot):
@@ -139,7 +139,7 @@ async def on_tree_error(
         app_commands.Choice(name="Exceed Gear", value="exceed"),
     ]
 )
-@app_commands.checks.cooldown(1, 30.0)  # per user; lookups are expensive
+@app_commands.checks.cooldown(1, 10.0)  # per user; lookups are expensive
 async def b50(
     interaction: discord.Interaction,
     username: str | None = None,

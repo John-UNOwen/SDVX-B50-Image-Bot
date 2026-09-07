@@ -3,6 +3,7 @@
 import os
 import functools
 import logging
+import random
 import time
 import numpy as np
 import requests
@@ -139,6 +140,13 @@ def best_font(size, text):
 
 # ── Jacket fetching ──────────────────────────────────────────────────────────
 
+_JACKET_HEADERS = {
+    "User-Agent": "SDVX-B50-Bot/1.0 (+https://github.com/John-UNOwen/SDVX-B50-Image-Bot)"
+}
+
+_JACKET_ATTEMPTS = 3  # transient failures get retried so cold renders don't lose jackets
+
+
 def _fetch_jacket(song_id):
     sid   = str(song_id)
     cache = os.path.join(JACKET_CACHE, f"{sid}.webp")
@@ -147,19 +155,44 @@ def _fetch_jacket(song_id):
             logger.debug("jacket cache hit: %s", sid)
             return Image.open(cache).convert("RGB")
         except Exception:
-            pass
+            pass  # corrupt/partial cache file -> refetch below
     url = f"{JACKET_BASE_URL}/{sid}_novice.webp"
-    try:
-        r = requests.get(url, timeout=8)
+    for attempt in range(1, _JACKET_ATTEMPTS + 1):
+        try:
+            r = requests.get(url, timeout=10, headers=_JACKET_HEADERS)
+        except requests.RequestException as exc:
+            logger.debug("jacket fetch failed (%d/%d): %s", attempt, _JACKET_ATTEMPTS, exc)
+            if attempt < _JACKET_ATTEMPTS:
+                time.sleep(0.4 * attempt + random.uniform(0.0, 0.3))
+                continue
+            return None
+
         if r.status_code == 200:
-            logger.debug("jacket fetched: %s", sid)
+            try:
+                img = Image.open(BytesIO(r.content)).convert("RGB")
+            except Exception:
+                # 200 but not an image — don't cache trash that would shadow
+                # every future attempt for this song.
+                logger.warning("jacket HTTP 200 but not an image: %s", sid)
+                return None
             with open(cache, "wb") as fh:
                 fh.write(r.content)
-            return Image.open(BytesIO(r.content)).convert("RGB")
+            logger.debug("jacket fetched: %s", sid)
+            return img
+
         logger.debug("jacket HTTP %s: %s", r.status_code, sid)
-    except Exception:
-        logger.debug("jacket fetch failed: %s", sid)
-        pass
+        if attempt >= _JACKET_ATTEMPTS:
+            return None
+        # 429: honour Retry-After when present, then back off with jitter.
+        if r.status_code == 429:
+            retry_after = (r.headers.get("Retry-After") or "").strip()
+            try:
+                wait = max(0.5, float(retry_after))
+            except ValueError:
+                wait = 1.0 + attempt
+        else:
+            wait = 0.4 * attempt + random.uniform(0.0, 0.3)
+        time.sleep(wait)
     return None
 
 
@@ -404,8 +437,10 @@ def generate_b50_image(data: dict) -> Image.Image:
     draw.text((mx + CARD_WIDTH - 8, my + 53), now.strftime("%B %d, %Y"),         font=font(9), fill=GRAY, anchor="ra")
 
     # ── Prefetch all jackets in parallel ─────────────────────────────────────
+    # 8 workers per render (up to 4 concurrent renders = 32 requests max);
+    # retries inside _fetch_jacket cover any that fail on the first attempt.
     song_ids = list({str(s["songId"]) for s in scores if s.get("songId")})
-    with ThreadPoolExecutor(max_workers=16) as pool:
+    with ThreadPoolExecutor(max_workers=8) as pool:
         futures = {pool.submit(_fetch_jacket, sid): sid for sid in song_ids}
         jcache = {sid: f.result() for f, sid in ((f, futures[f]) for f in futures)}
 
