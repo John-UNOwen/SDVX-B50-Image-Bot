@@ -6,7 +6,7 @@ These Terms of Service ("Terms") govern your use of **sdvx-b50-image-bot** ("the
 
 ## About the Bot
 
-The Bot is a Discord application that renders a Sound Voltex **B50** card image for a given Tachi/Kamaitachi username, using the commands `/b50`, `/link`, `/unlink`, and `/stats`. It is a hobby project provided free of charge.
+The Bot is a Discord application that renders a Sound Voltex **B50** card image for a given Tachi/Kamaitachi username, using the commands `/b50`, `/link`, `/unlink`, `/invite`, and `/stats`. It is a hobby project provided free of charge.
 
 ## Acceptable use
 

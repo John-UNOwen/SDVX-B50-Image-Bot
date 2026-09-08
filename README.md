@@ -9,6 +9,8 @@ public [Tachi](https://kamai.tachi.ac) (Kamaitachi) user.
                              username is optional if you're linked (/link)
 /link <username>         ->  link your Discord account to your Tachi username
 /unlink                  ->  remove your link
+/invite                  ->  links to add the bot to a server or install it on
+                             your account so /b50 works in DMs
 ```
 
 ## What it does
@@ -29,7 +31,7 @@ needed.
 ## Project layout
 
 ```
-bot.py              Discord bot (discord.py): /b50, /link, /unlink, /stats
+bot.py              Discord bot (discord.py): /b50, /link, /unlink, /invite, /stats
 tachi.py            Tachi client: fetch pbs, resolve levels, build top-50 rows
 vf.py               VF calculation (coefficient tables + formula)
 links.py            Discord-user <-> Tachi-username link store (SQLite)

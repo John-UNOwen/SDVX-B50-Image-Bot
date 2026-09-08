@@ -106,6 +106,24 @@ async def _send_error(
         await interaction.response.send_message(message, ephemeral=True)
 
 
+def _invite_urls(bot_id: int) -> tuple[str, str]:
+    """Return ``(guild install, user install)`` OAuth2 authorize URLs.
+
+    The user-install URL is built by hand: discord.utils.oauth_url has no
+    ``integration_type`` parameter in this discord.py version.
+    """
+    guild = discord.utils.oauth_url(
+        bot_id,
+        permissions=discord.Permissions(0),
+        scopes=("bot", "applications.commands"),
+    )
+    user = (
+        f"https://discord.com/oauth2/authorize?client_id={bot_id}"
+        "&scope=applications.commands&integration_type=1"
+    )
+    return guild, user
+
+
 @bot.tree.error
 async def on_tree_error(
     interaction: discord.Interaction, error: app_commands.AppCommandError
@@ -357,6 +375,24 @@ async def unlink(interaction: discord.Interaction) -> None:
             "You don't have a link to remove. Use `/link <username>` to add one.",
             ephemeral=True,
         )
+
+
+@bot.tree.command(
+    name="invite",
+    description="Get links to add SDVX-B50 to a server or install it for DMs",
+)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
+async def invite(interaction: discord.Interaction) -> None:
+    logger.info("/invite by %s (%s)", interaction.user, interaction.user.id)
+    guild_url, user_url = _invite_urls(interaction.client.user.id)
+    await interaction.response.send_message(
+        "**Get SDVX-B50**\n"
+        f"• Add to a server (bot + commands): {guild_url}\n"
+        f"• Install to your account (use in DMs): {user_url}\n\n"
+        "After a user install, open a DM with the bot and run `/b50`. "
+        "Commands can take up to an hour to appear after installing.",
+    )
 
 
 @bot.tree.command(name="stats", description="Show bot query statistics")
