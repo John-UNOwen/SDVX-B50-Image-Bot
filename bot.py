@@ -392,6 +392,7 @@ async def invite(interaction: discord.Interaction) -> None:
         f"• Install to your account (use in DMs): {user_url}\n\n"
         "After a user install, open a DM with the bot and run `/b50`. "
         "Commands can take up to an hour to appear after installing.",
+        ephemeral=True,  # links are personal; only the caller sees them
     )
 
 

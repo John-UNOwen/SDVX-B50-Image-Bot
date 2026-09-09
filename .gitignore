@@ -4,6 +4,7 @@ _ref/
 _render-test/
 .dsh-vision-router/
 *.log
+*.lnk
 
 # Python
 __pycache__/
