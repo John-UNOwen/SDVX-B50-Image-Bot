@@ -1,6 +1,8 @@
 """Persistent Discord-user <-> Tachi-username link storage (SQLite).
 
-The database file is ``links.db`` next to this module and is gitignored.
+The database file is ``links.db`` next to this module by default, but the
+path is overridable via the ``LINKS_DB`` environment variable (e.g. set to
+``/app/data/links.db`` in Docker). It is gitignored.
 """
 
 from __future__ import annotations
@@ -12,10 +14,15 @@ import time
 
 logger = logging.getLogger(__name__)
 
-_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "links.db")
+_DB_PATH = os.environ.get("LINKS_DB") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "links.db"
+)
 
 
 def _connect() -> sqlite3.Connection:
+    parent = os.path.dirname(_DB_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     conn = sqlite3.connect(_DB_PATH)
     conn.execute(
         """

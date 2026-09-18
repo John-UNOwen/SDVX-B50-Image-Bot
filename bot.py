@@ -67,16 +67,27 @@ class B50Bot(commands.Bot):
             logger.error("Slash command tree sync failed: %s", exc)
 
         # Optional instant per-guild sync (GUILD_ID in .env): commands show up
-        # immediately in that server.
+        # immediately in that server. Validate the format first so a bad
+        # GUILD_ID surfaces as a clear config error instead of being swallowed
+        # as a generic ValueError by the sync try/except below.
         guild_id = os.getenv("GUILD_ID")
         if guild_id:
             try:
-                guild = await self.fetch_guild(int(guild_id))
-                self.tree.copy_global_to(guild=guild)
-                await self.tree.sync(guild=guild)
-                logger.info("Slash command tree synced to guild %s", guild_id)
-            except Exception as exc:  # noqa: BLE001
-                logger.error("Guild sync failed (GUILD_ID=%s): %s", guild_id, exc)
+                guild_id_num = int(guild_id)
+            except ValueError:
+                logger.error(
+                    "Bad GUILD_ID config value %r (not an integer); "
+                    "skipping per-guild sync. Fix .env/GUILD_ID.",
+                    guild_id,
+                )
+            else:
+                try:
+                    guild = await self.fetch_guild(guild_id_num)
+                    self.tree.copy_global_to(guild=guild)
+                    await self.tree.sync(guild=guild)
+                    logger.info("Slash command tree synced to guild %s", guild_id)
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("Guild sync failed (GUILD_ID=%s): %s", guild_id, exc)
 
     async def on_ready(self) -> None:
         logger.info("Bot online as %s (%s)", self.user, self.user.id)
@@ -137,11 +148,19 @@ async def on_tree_error(
         return
     logger.error("Unhandled command error: %s", error, exc_info=True)
     try:
-        await interaction.response.send_message(
-            "Something went wrong. Please try again.", ephemeral=True
-        )
+        if interaction.response.is_done():
+            # Already deferred/responded (e.g. a /b50 public defer went wrong)
+            # — a second response would raise InteractionResponded, so the
+            # fallback has to go through the followup channel instead.
+            await interaction.followup.send(
+                "Something went wrong. Please try again."
+            )
+        else:
+            await interaction.response.send_message(
+                "Something went wrong. Please try again.", ephemeral=True
+            )
     except discord.HTTPException:
-        pass  # already responded / impossible to respond; logs have the error
+        pass  # impossible to respond; logs have the error
 
 
 @bot.tree.command(name="b50", description="Generate your SDVX B50 image from Tachi")
@@ -164,8 +183,7 @@ async def b50(
     mode: str = "nabla",
 ) -> None:
     logger.info(
-        "/b50 by %s (%s): username=%r mode=%s",
-        interaction.user,
+        "/b50 by user %s: username=%r mode=%s",
         interaction.user.id,
         username,
         mode,
@@ -230,6 +248,20 @@ async def b50(
         except TachiError as exc:
             logger.error("/b50: tachi error: %s", exc)
             await _send_error(interaction, f"Tachi error: {exc}", deferred=True)
+            return
+        except Exception as exc:  # noqa: BLE001 — any non-domain failure
+            # The interaction is already publicly deferred; an escaping
+            # exception would leave on_tree_error unable to respond (is_done()
+            # is True → it must use a followup), leaving the user hanging.
+            # Keep the followup neutral and leave the details in the logs.
+            logger.error(
+                "/b50: slow-path fetch failed for %s: %s", username, exc, exc_info=True
+            )
+            await _send_error(
+                interaction,
+                "Something went wrong. Please try again.",
+                deferred=True,
+            )
             return
     except UserNotFound:
         logger.warning("/b50: no public sdvx data for %s", username)
@@ -308,10 +340,9 @@ async def b50(
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.describe(username="Your Tachi/Kamaitachi username")
+@app_commands.checks.cooldown(1, 10.0)  # per user; lookups are expensive
 async def link(interaction: discord.Interaction, username: str) -> None:
-    logger.info(
-        "/link by %s (%s) -> %s", interaction.user, interaction.user.id, username
-    )
+    logger.info("/link by user %s -> %s", interaction.user.id, username)
     stats.record("link", user_id=str(interaction.user.id), target=username)
     try:
         canonical = await asyncio.to_thread(find_user, username)
@@ -357,7 +388,7 @@ async def link(interaction: discord.Interaction, username: str) -> None:
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)
 async def unlink(interaction: discord.Interaction) -> None:
-    logger.info("/unlink by %s (%s)", interaction.user, interaction.user.id)
+    logger.info("/unlink by user %s", interaction.user.id)
     stats.record("unlink", user_id=str(interaction.user.id))
     removed = links.unlink(str(interaction.user.id))
     if removed is None:
@@ -384,7 +415,7 @@ async def unlink(interaction: discord.Interaction) -> None:
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)
 async def invite(interaction: discord.Interaction) -> None:
-    logger.info("/invite by %s (%s)", interaction.user, interaction.user.id)
+    logger.info("/invite by user %s", interaction.user.id)
     guild_url, user_url = _invite_urls(interaction.client.user.id)
     await interaction.response.send_message(
         "**Get SDVX-B50**\n"

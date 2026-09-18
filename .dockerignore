@@ -12,5 +12,10 @@ __pycache__/
 *.py[cod]
 b50_render/.jacket_cache/
 
+# Runtime databases (Discord <-> Tachi links, query stats) — never ship PII
+links.db
+stats.db
+*.db
+
 # Keep: *.py, b50_render/**, requirements.txt, README.md, LICENSE,
 #        .env.example, Dockerfile, assets (fonts) inside b50_render/asset/

@@ -6,6 +6,12 @@ _render-test/
 *.log
 *.lnk
 
+# Checkup/fix verification scratch (ad-hoc audit reports + smoke harnesses)
+DELIVERY_REPORT.md
+STEP7_SMOKE_REPORT.md
+_smoke_step7.py
+_smoke_step7b_volume.py
+
 # Python
 __pycache__/
 *.py[cod]

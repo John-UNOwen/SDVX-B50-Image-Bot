@@ -40,7 +40,8 @@ render.py           CLI test driver (no Discord) - python render.py <username>
 b50_render/
   generate.py       Pillow image renderer (adapted)
   asset/*.ttf       fonts used for rendering
-requirements.txt
+requirements.txt      direct, verified dependency pins (what you install)
+requirements.lock     fully-pinned pip-freeze-style lock (direct + transitive)
 .env.example
 Dockerfile          container image for hosting the bot
 docker-compose.yml  one-command deploy (with persisted jacket cache)
@@ -49,16 +50,22 @@ docker-compose.yml  one-command deploy (with persisted jacket cache)
 
 ## Setup
 
+> **Python 3.12+ is required.** `numpy==2.5.2` (pinned in
+> [`requirements.txt`](requirements.txt)) does not support Python 3.11 or older,
+> so running this bot needs **CPython 3.12 or newer**. The local dev machine
+> happens to run Python 3.14, and the Docker image uses `python:3.12-slim`; both
+> satisfy this requirement.
+>
 > **Use a virtualenv.** This machine has several Python installs (Anaconda 3.13,
 > python.org 3.13, python 3.14, plus the Microsoft Store alias), and the Anaconda
 > one is known to crash. Using `.venv` from the working 3.14 avoids all of that.
 
 ```powershell
-# 1) create a clean virtualenv from the working interpreter (C:\Python314)
+# 1) create a clean virtualenv from a Python 3.12+ interpreter (here C:\Python314)
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1        # PowerShell; or `call .venv\Scripts\activate.bat` in cmd
 
-# 2) install deps (into .venv; .venv is gitignored)
+# 2) install deps into .venv (see "Dependencies" below; .venv is gitignored)
 python -m pip install -r requirements.txt
 
 # 3) configure the bot token
@@ -72,6 +79,24 @@ python render.py <username>
 # 5) run the bot
 python bot.py
 ```
+
+## Dependencies
+
+- [`requirements.txt`](requirements.txt) lists the **direct** dependencies pinned
+  to the exact versions this project was developed and verified against. Install
+  these into the venv with `python -m pip install -r requirements.txt`.
+- [`requirements.lock`](requirements.lock) is the **fully-pinned lock** (pip-freeze
+  style): every direct **and** transitive package is pinned to an exact `==`
+  version, with all `>=` / `~=` ranges eliminated, targeted at **CPython 3.12+**.
+  Use it when you need a bit-exact, reproducible environment:
+  `python -m pip install -r requirements.lock`.
+- **Offline note on the lock:** `requirements.lock` was generated *offline* (no
+  network / no `pip` in the generation environment), so it was **not** produced by
+  an actual `pip freeze` run. Its transitive set and versions were instead resolved
+  from live PyPI release metadata (the newest release satisfying each dependency's
+  constraint on CPython 3.12). Before depending on it, regenerate it on a machine
+  with network access to confirm the exact versions:
+  `python -m pip install -r requirements.txt && python -m pip freeze > requirements.lock`.
 
 > **Windows quick start:** double-click `start.bat` at the repo root. It uses a
 > single-instance launcher — it auto-stops any previous bot and refuses to
@@ -101,21 +126,45 @@ Or without compose:
 docker build -t sdvx-b50-image-bot .
 docker run -d --name sdvx-b50-image-bot \
   -e DISCORD_TOKEN=your-bot-token-here \
+  -e LINKS_DB=/app/data/links.db \
+  -e STATS_DB=/app/data/stats.db \
   -v b50-jacket-cache:/app/b50_render/.jacket_cache \
+  -v b50-data:/app/data \
   --restart unless-stopped \
   sdvx-b50-image-bot
 ```
 
-The jacket cache is a named volume, so covers aren't re-downloaded on every restart.
+The jacket cache is a named volume, so covers aren't re-downloaded on every
+restart. The SQLite databases (`links.db` and `stats.db`) also live on the
+`b50-data` named volume, mounted at `/app/data`, so saved links and query
+statistics survive container rebuilds. The DB paths are pointed there with the
+`LINKS_DB` / `STATS_DB` env vars; outside Docker each defaults to `links.db`
+/ `stats.db` next to the source file, and the parent directory is created
+automatically.
+
+The container runs as the non-root `appuser` (uid 1000). The two writable
+paths, `/app/data` and `/app/b50_render/.jacket_cache`, are named-volume mount
+targets. **Ownership of those volumes is fixed automatically at every boot**: the
+image entrypoint (`entrypoint.py`) runs as container root, re-owns both mount
+targets to `appuser`, then drops privileges to `appuser` and launches the bot.
+This runs inside the container's own user namespace, so it does not depend on
+how the host maps uid 1000 (user-namespace remapping) and it **also repairs
+reused volumes** — including an old volume that was populated as `root` — so
+you do not need `docker compose down -v` to fix permissions. Do not set
+`user: appuser` (or `user: "1000"`) on the service in compose or override
+`entrypoint:`, or the entrypoint cannot re-own the volumes and `/link`,
+`/stats` and `/b50` will fail with permission errors on any host where the
+volume ownership does not already match.
 
 ## Notes & limitations
 
 - Works only for **public** Tachi profiles; private profiles return an error.
 - Renders can take tens of seconds while jackets download (cached afterward in
   `b50_render/.jacket_cache/`), so the command is deferred.
-- **Python 3.x compatibility:** `discord.py` historically lags the newest CPython
-  releases. This was written against Python 3.14; if `discord.py` fails to install
-  or import, use Python 3.11–3.12 or pin to a newer `discord.py`/`nextcord` build.
+- **Python version:** **CPython 3.12+ is required** (see Setup); Python 3.11 and
+  older are **not** supported because the pinned `numpy==2.5.2` needs >=3.12.
+  The code was written against Python 3.14; the Docker image ships on
+  `python:3.12-slim`. There is no supported configuration on Python 3.11.
 - `diff` and `lamp` strings are pulled straight from Tachi and mapped to the
   renderer's badge styles; unmapped values fall back gracefully.
 - **Verified correctness:** the VF calculation matches Tachi's own

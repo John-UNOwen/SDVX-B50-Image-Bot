@@ -1,0 +1,39 @@
+# Fully-pinned dependency lock for sdvx-b50-image-bot.
+# Target interpretation: CPython 3.12+ (numpy==2.5.2 requires >=3.12).
+# Regenerate like a pip freeze so every direct AND transitive package is
+# pinned to an exact == version (no >= or ~=), e.g.:
+#     python -m pip install -r requirements.txt
+#     python -m pip freeze > requirements.lock
+
+# NOTE (offline gap): this lock was generated offline without network in the
+# generation environment, so it could NOT be produced by an actual `pip freeze`
+# run. Instead the transitive set and resolved versions were determined from
+# live PyPI release metadata (the newest release satisfying each dependency
+# constraint on CPython 3.12) as of lock generation. On a machine with network,
+# `pip install -r requirements.txt && pip freeze` before use to confirm or
+# refresh these exact versions.
+
+# Direct dependencies (pinned equal to requirements.txt).
+discord.py==2.7.1
+pillow==12.3.0
+numpy==2.5.2
+requests==2.34.2
+python-dotenv==1.2.3
+
+# Transitive dependencies.
+# discord.py -> aiohttp
+aiohttp==3.14.3
+aiohappyeyeballs==2.7.1
+aiosignal==1.4.0
+attrs==26.1.0
+frozenlist==1.8.0
+multidict==6.8.0
+propcache==0.5.4
+typing-extensions==4.16.0
+yarl==1.25.1
+
+# requests -> charset-normalizer, idna, urllib3, certifi
+charset-normalizer==3.5.1
+idna==3.20
+urllib3==2.8.0
+certifi==2026.7.22

@@ -25,6 +25,10 @@ The Bot is a Discord application that generates a Sound Voltex **B50** card imag
 - **Public Tachi/Kamaitachi data** (`kamai.tachi.ac`) — the public profile and SDVX personal-best scores for the username supplied. The Bot does **not** log in to Tachi or access private data.
 - **Song cover art** (`sdvx.dev`) — used only to render the image.
 
+**Console logging (on the machine/server running the Bot):**
+
+- The Bot writes console log lines when commands are run. By default (**INFO** level) each action logs your **Discord user ID** and the **Tachi username(s) queried** (for `/b50`, `/link`, and related commands). The **DEBUG** level adds per-request detail (every API call, jacket fetch, link lookup). These logs are not sent anywhere beyond the host running the Bot; the operator controls how long they are kept.
+
 ## What we do NOT collect
 
 - **Message content** — the Bot is slash-command-only and never reads or stores messages.

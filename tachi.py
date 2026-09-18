@@ -71,15 +71,24 @@ def _request(url: str, timeout: float, attempts: int = 2) -> requests.Response:
                 continue
             raise TachiError(f"Could not reach Tachi: {exc}") from exc
 
-        if r.status_code in RETRYABLE_STATUSES and attempt < attempts:
-            logger.warning(
-                "Tachi HTTP %s (attempt %d/%d); retrying",
-                r.status_code,
-                attempt,
-                attempts,
-            )
-            time.sleep(0.5 * attempt)
-            continue
+        if r.status_code in RETRYABLE_STATUSES:
+            if attempt < attempts:
+                logger.warning(
+                    "Tachi HTTP %s (attempt %d/%d); retrying",
+                    r.status_code,
+                    attempt,
+                    attempts,
+                )
+                time.sleep(0.5 * attempt)
+                continue
+            # Last attempt: a persistent server error should surface as a
+            # friendly error, not be returned as if it succeeded. 429 (also
+            # retryable) is still returned so callers can give the distinct
+            # rate-limit message.
+            if 500 <= r.status_code < 600:
+                raise TachiError(
+                    f"Tachi temporarily unavailable (HTTP {r.status_code}); try again later."
+                )
         return r
     raise RuntimeError("unreachable")  # pragma: no cover
 

@@ -4,6 +4,7 @@ import os
 import functools
 import logging
 import random
+import re
 import time
 import numpy as np
 import requests
@@ -146,9 +147,16 @@ _JACKET_HEADERS = {
 
 _JACKET_ATTEMPTS = 3  # transient failures get retried so cold renders don't lose jackets
 
+# Jacket cache paths / URLs are keyed directly on the song id, so only accept
+# pure-numeric ids; anything else is skipped before a path or request is built.
+_ALLOWED_SONG_ID = re.compile(r"[0-9]+\Z")
+
 
 def _fetch_jacket(song_id):
-    sid   = str(song_id)
+    sid = str(song_id)
+    if not _ALLOWED_SONG_ID.fullmatch(sid):
+        logger.debug("skip non-numeric jacket id: %s", sid)
+        return None
     cache = os.path.join(JACKET_CACHE, f"{sid}.webp")
     if os.path.exists(cache):
         try:
@@ -175,9 +183,24 @@ def _fetch_jacket(song_id):
                 # every future attempt for this song.
                 logger.warning("jacket HTTP 200 but not an image: %s", sid)
                 return None
-            with open(cache, "wb") as fh:
-                fh.write(r.content)
-            logger.debug("jacket fetched: %s", sid)
+            try:
+                with open(cache, "wb") as fh:
+                    fh.write(r.content)
+            except OSError as exc:
+                # Cache dir not writable (e.g. volume owned by a different
+                # user). Degrade to no-caching for this jacket rather than let
+                # a PermissionError escape _fetch_jacket and crash the whole
+                # render via ThreadPoolExecutor.future.result(). Mirrors the
+                # graceful-fallback behaviour of links.py/stats.py.
+                logger.error(
+                    "jacket CACHE DISABLED: write failed for %s (%s). "
+                    "Jackets will re-download every render until the cache dir "
+                    "is writable (check volume ownership / the entrypoint chown).",
+                    sid,
+                    exc,
+                )
+            else:
+                logger.debug("jacket fetched: %s", sid)
             return img
 
         logger.debug("jacket HTTP %s: %s", r.status_code, sid)
