@@ -36,4 +36,4 @@ These Terms may be updated from time to time; the current version always lives i
 
 ## Contact
 
-Questions about these Terms: open an issue on this repository's GitHub page.
+Questions about these Terms: open an issue at **https://github.com/John-UNOwen/SDVX-B50-Image-Bot/issues**.
