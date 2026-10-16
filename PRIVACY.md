@@ -61,4 +61,4 @@ We may update this policy from time to time; the current version always lives in
 
 ## Contact
 
-Questions or deletion requests: open an issue at **https://github.com/John-UNOwen/SDVX-B50-Image-Bot/issues**.
+Questions or deletion requests: open an issue on this repository's GitHub page.

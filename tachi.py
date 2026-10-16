@@ -32,7 +32,7 @@ API_BASE = "https://kamai.tachi.ac/api/v1"
 # Tachi rate-limits/409s clients with implausible User-Agents (verified: the
 # default urllib UA gets HTTP 403 while a descriptive UA gets HTTP 200).
 _HEADERS = {
-    "User-Agent": "SDVX-B50-Bot/1.0 (+https://github.com/John-UNOwen/SDVX-B50-Image-Bot)"
+    "User-Agent": "SDVX-B50-Bot/1.0"
 }
 
 # Transient statuses worth one retry before giving up.

@@ -105,8 +105,8 @@ python bot.py
 
 > If you ever get a `python.exe`/`git.exe` "Application Error", it's almost always
 > a stray interpreter from Anaconda being picked up. Always run through the venv
-> (`python` resolves to `.venv`), or call the venv python explicitly:
-> `.venv\Scripts\python.exe bot.py`.
+> (`python` resolves to `.venv`), or call the venv python explicitly from the
+> repo root: `.venv\Scripts\python.exe bot.py`.
 
 ## Deploy with Docker
 
