@@ -142,7 +142,7 @@ def best_font(size, text):
 # ── Jacket fetching ──────────────────────────────────────────────────────────
 
 _JACKET_HEADERS = {
-    "User-Agent": "SDVX-B50-Bot/1.0"
+    "User-Agent": "SDVX-B50-Bot/1.0 (+https://github.com/John-UNOwen/SDVX-B50-Image-Bot)"
 }
 
 _JACKET_ATTEMPTS = 3  # transient failures get retried so cold renders don't lose jackets
